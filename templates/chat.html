@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %} - Chat{% endblock %}
+{% block extraheader %}
+<script type="text/javascript" charset="utf-8">
+	$(document).ready(function(){
+
+		namespace = '/thechat'; 
+		
+		var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+		
+		// event handler for data from server
+		socket.on('response', function(msg) {
+			$('#log').append("<div>"+msg.data+"</div>");
+		});
+		
+		$('form#send').submit(function(event) {
+			socket.emit('message', {data: $('#data').val()});
+			return false;
+		});
+		
+	});
+</script>
+{% endblock %}
+{% block body %}
+
+	<h1>Chat in the marketplace</h1>
+	
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<div id="log"></div>
+		</div>
+	</div>
+
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<form id="send" method="POST" action='#' class="form-inline">
+				<div class="form-group">
+					<input type="text" name="data" id="data" placeholder="Message">
+					<button type="submit" class="btn btn-md btn-primary">
+						<span class="glyphicon glyphicon-send" aria-hidden="true"></span> Send
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	
+{% endblock %}

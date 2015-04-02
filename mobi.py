@@ -5,15 +5,17 @@ Mobi
 ~~~~~~
 "Mobile garage sale" takes the hassle out of buying and selling stuff on-the-go.
 
-version 0.02
-
 """
+
+from gevent import monkey
+monkey.patch_all()
 
 import os, sys
 import json, sqlite3
-from flask import Flask, render_template, g, request, flash, redirect, url_for
+from flask import Flask, render_template, g, request, flash, redirect, url_for, session, Markup
 import requests
 import config
+from flask.ext.socketio import SocketIO, emit, disconnect
 
 app = Flask(__name__)
 
@@ -27,6 +29,8 @@ app.config.update(dict(
 	DEBUG=config.DEBUG,
 	SECRET_KEY=config.SECRET_KEY
 ))
+
+socketio = SocketIO(app)
 
 def connect_db():
 	""" connect to the specific database """
@@ -63,6 +67,33 @@ def index():
 	""" show front page """
 	return render_template('index.html')
 
+@app.route("/chat")
+def chat():
+	""" show chat page """
+	return render_template('chat.html')
+
+"""
+SocketIO	
+"""
+
+@socketio.on('message', namespace='/thechat')
+def send_message(message):
+	escaped_message = Markup.escape(message['data']) # escape the message before broadcasting it!
+	emit('response',{'data': escaped_message},broadcast=True)
+
+@socketio.on('disconnect request', namespace='/thechat')
+def disconnect_request():
+	emit('response',{'data': 'You have been disconnected.'})
+	disconnect()
+	
+@socketio.on('connect', namespace='/thechat')
+def thechat_connect():
+	emit('response', {'data': 'You are now connected.'})
+
+@socketio.on('disconnect', namespace='/thechat')
+def thechat_disconnect():
+	print('The client has disconnected.')
+
 # if this module is called directly, run the app
 if __name__ == "__main__":
-	app.run()
+	socketio.run(app)
