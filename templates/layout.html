@@ -41,11 +41,46 @@
 		<div id="navbar" class="navbar-collapse collapse">
 			<ul class="nav navbar-nav">
 				<li {% if request.path == "/" %}class="active"{% endif %}><a href="/"><span class="glyphicon glyphicon-home" aria-hidden="true"> Home</a></li>
-				<li {% if request.path == "/chat" %}class="active"{% endif %}><a href="/chat"><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Chat</a></li>
+				
+				{% if g.user.is_authenticated() %}
+					<li {% if request.path == "/chat" %}class="active"{% endif %}><a href="/chat"><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Chat</a></li>
+				{% else %}
+				{% endif %}
+				
+				
+			</ul>
+			<ul class="nav navbar-nav navbar-right">
+				{% if g.user.is_authenticated() %}
+					<li {% if request.path == "/logout" %}class="active"{% endif %}><a href="/logout"><span class="glyphicon glyphicon-log-out" aria-hidden="true"></span> Logout</a></li>
+				{% else %}
+					<li {% if request.path == "/login" %}class="active"{% endif %}><a href="/login"><span class="glyphicon glyphicon-user" aria-hidden="true"></span> Login</a></li>				
+				{% endif %}
 			</ul>
 		</div><!--/.nav-collapse -->
 	</div>
+
 </nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+
+    {% for category, message in messages %}
+		<div class="alert alert-{{ category }} alert-dismissible fade in" role="alert">
+			<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			{% if category == 'success' %}
+				<strong>Success!</strong>
+			{% elif category == 'danger' %}
+				<strong>Error!</strong>
+			{% endif %}
+			{{ message }}
+		</div>
+    {% endfor %}
+
+  {% endif %}
+{% endwith %}
+
+
+
 
 <div class="container">
 

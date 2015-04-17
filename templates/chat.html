@@ -10,7 +10,7 @@
 		
 		// event handler for data from server
 		socket.on('response', function(msg) {
-			$('#log').append("<div>"+msg.data+"</div>");
+			$('#log').append("<div><span class=\"label label-primary\">"+msg.user+"</span>    "+msg.data+"</div>");
 		});
 		
 		$('form#send').submit(function(event) {

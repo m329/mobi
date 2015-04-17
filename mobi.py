@@ -16,8 +16,15 @@ from flask import Flask, render_template, g, request, flash, redirect, url_for, 
 import requests
 import config
 from flask.ext.socketio import SocketIO, emit, disconnect
+from flask.ext.login import LoginManager, login_required, login_user, logout_user, current_user
+from forms import LoginForm
+from models import User
+import hashlib
 
 app = Flask(__name__)
+
+lm = LoginManager()
+lm.init_app(app)
 
 """
 DB-related
@@ -65,12 +72,63 @@ View functions
 @app.route("/")
 def index():
 	""" show front page """
-	return render_template('index.html')
+	return render_template('index.html',user=g.user)
 
 @app.route("/chat")
+@login_required
 def chat():
 	""" show chat page """
-	return render_template('chat.html')
+	return render_template('chat.html',user=g.user)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+	db = get_db()
+	
+	form = LoginForm()
+	if form.validate_on_submit():
+		# login and validate the user...
+		user = User.get(request.form['usr'])
+
+		cur = db.execute('select pas from users where usr=?',[request.form['usr']])
+		user.password = cur.fetchone()[0]
+		
+		if (user and user.password == hashlib.sha224(request.form['usr']+':'+request.form['pas']).hexdigest()):
+			login_user(user)
+			flash("Logged in successfully.", 'success')
+			return redirect(url_for('index'))
+		else:
+			flash('Username or password incorrect.', 'danger')
+	return render_template("login.html", user=g.user, form=form)
+
+def require_login():
+	flash("You must login to view this page!", 'danger')
+	return redirect(url_for('login'))
+    
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("You have logged out successfully.", 'success')
+    return redirect(url_for('index'))
+
+@app.route("/settings")
+@login_required
+def settings():
+    pass
+
+"""
+Users and login
+"""
+
+@lm.user_loader
+def load_user(userid):
+    return User.get(userid)
+    
+lm.unauthorized_handler(require_login)
+
+@app.before_request
+def before_request():
+    g.user = current_user
 
 """
 SocketIO	
@@ -78,17 +136,23 @@ SocketIO
 
 @socketio.on('message', namespace='/thechat')
 def send_message(message):
-	escaped_message = Markup.escape(message['data']) # escape the message before broadcasting it!
-	emit('response',{'data': escaped_message},broadcast=True)
+	if current_user.is_authenticated():
+		escaped_message = Markup.escape(message['data']) # escape the message before broadcasting it!
+		emit('response',{'data': escaped_message, 'user': current_user.id},broadcast=True)
+	else:
+		disconnect()
 
 @socketio.on('disconnect request', namespace='/thechat')
 def disconnect_request():
-	emit('response',{'data': 'You have been disconnected.'})
+	emit('response',{'data': 'You have been disconnected.', 'user': 'system'})
 	disconnect()
-	
+
 @socketio.on('connect', namespace='/thechat')
 def thechat_connect():
-	emit('response', {'data': 'You are now connected.'})
+	if current_user.is_authenticated():
+		emit('response', {'data': 'You are now connected.', 'user': 'system'})
+	else:
+		disconnect()
 
 @socketio.on('disconnect', namespace='/thechat')
 def thechat_disconnect():
