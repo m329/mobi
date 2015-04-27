@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %} - Inventory{% endblock %}
+{% block extraheader %}
+{% endblock %}
+{% block body %}
+
+	<h1>{{g.user.id}}'s inventory</h1>
+	
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<ul>
+			{% for itm,name,price in items %}
+				<li>
+					{{name}}
+					<span class="label label-success">${{price}}</span>
+					<a href="/inventory/delete/{{itm}}" class="btn btn-xs btn-danger">
+						<span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+					</a>
+					
+				</li>
+			{% endfor %}
+			</ul>
+		</div>
+	</div>
+
+	<div class="panel panel-default">
+		<div class="panel-body">
+			
+			<h3>Add items</h3>
+
+			<form action="{{ url_for('inventory') }}" method="post" name="add">
+				<div class="form-group">
+					{{ form.hidden_tag() }}
+								
+					Item name: {{ form.item(size=60) }}
+					Item price: {{ form.price(size=10) }}
+					
+					<button type="submit" class="btn btn-md btn-primary">
+						<span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add
+					</button>
+				</div>
+			</form>
+			
+		</div>
+	</div>
+		
+{% endblock %}

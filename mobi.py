@@ -17,9 +17,10 @@ import requests
 import config
 from flask.ext.socketio import SocketIO, emit, disconnect
 from flask.ext.login import LoginManager, login_required, login_user, logout_user, current_user
-from forms import LoginForm
+from forms import LoginForm, WishlistSearchForm, InventoryAddForm
 from models import User
 import hashlib
+import geohash
 
 app = Flask(__name__)
 
@@ -70,9 +71,10 @@ View functions
 """
 
 @app.route("/")
-def index():
+@app.route("/<asklocation>")
+def index(asklocation=''):
 	""" show front page """
-	return render_template('index.html',user=g.user)
+	return render_template('index.html',user=g.user,asklocation=asklocation)
 
 @app.route("/chat")
 @login_required
@@ -95,7 +97,7 @@ def login():
 		if (user and user.password == hashlib.sha224(request.form['usr']+':'+request.form['pas']).hexdigest()):
 			login_user(user)
 			flash("Logged in successfully.", 'success')
-			return redirect(url_for('index'))
+			return redirect(url_for('index',asklocation='askgeo'))
 		else:
 			flash('Username or password incorrect.', 'danger')
 	return render_template("login.html", user=g.user, form=form)
@@ -115,6 +117,116 @@ def logout():
 @login_required
 def settings():
     pass
+
+"""
+Geolocation
+"""
+@app.route("/geolocation/update",methods=["POST"])
+@login_required
+def update_geolocation():
+
+	lat = float(request.form['latitude'])
+	lon = float(request.form['longitude'])
+
+	db = get_db()
+	
+	print "lat: "+str(lat)
+	print "lon: "+str(lon)
+	
+	gh = geohash.encode(lat,lon)[:5]
+	
+	db.execute("update users set lat=?, lon=?, geohash=? where usr=?",[lat,lon,gh,g.user.id])
+	db.commit()
+	return "[]"
+
+def get_user_geohash(userid=None):
+	if userid is None:
+		userid = g.user.id
+	db = get_db()
+	cur = db.execute("select geohash from users where usr=?",[g.user.id])
+	gh = cur.fetchone()[0]
+	return gh
+
+"""
+Inventory
+"""
+
+@app.route("/inventory",methods=['GET','POST'])
+@login_required
+def inventory():
+	
+	db = get_db()
+	
+	form=InventoryAddForm()
+	if form.validate_on_submit():
+		item_name = Markup.escape(request.form['item']) # escape the search term before broadcasting it!
+		price = Markup.escape(request.form['price'])
+		
+		db.execute("insert into items (itm_name, usr, prc) values(?, ?, ?);",[item_name,g.user.id, price])
+		db.commit()
+
+	cur = db.execute("select itm_id, itm_name, prc from items where usr=?",[g.user.id])
+	items = cur.fetchall()
+	return render_template("inventory.html", user=g.user, items=items, form=form)
+
+@app.route("/inventory/delete/<id>", methods=["GET"])
+@login_required
+def inventory_delete(id):
+	
+	id = Markup.escape(id) # escape
+	
+	db = get_db()
+	
+	db.execute("delete from items where usr=? and itm_id=?",[g.user.id, id])
+	db.commit()
+	
+	return redirect(url_for('inventory'))
+
+@app.route("/wishlist/nearby")
+@login_required
+def wishlist_nearby():
+	
+	gh = get_user_geohash()
+	
+	neighbors = geohash.neighbors(gh)
+	neighbors.append(gh)
+	neighborhood = "('"+"','".join(neighbors)+"')"
+		
+	db = get_db()
+	cur = db.execute("select I.itm_name, I.prc, U.usr as owner, I.itm_id from items as I join users as U on I.usr=U.usr join (select * from wishlists as WI join users as US on WI.usr = US.usr) as W where U.usr!=? and W.usr=? and I.itm_name like '%'||W.wishstr||'%' and U.geohash in "+neighborhood+";",[g.user.id, g.user.id])
+	items = cur.fetchall()
+	return render_template("wishlist_nearby.html", user=g.user, items=items)
+
+@app.route("/wishlist/search/delete/<term>", methods=["GET"])
+@login_required
+def wishlist_search_delete(term):
+	
+	term = Markup.escape(term) # escape
+	
+	db = get_db()
+	
+	db.execute("delete from wishlists where usr=? and wishstr=?",[g.user.id, term])
+	db.commit()
+	
+	return redirect(url_for('wishlist_search'))
+	
+	
+@app.route("/wishlist/search", methods=["GET", "POST"])
+@login_required
+def wishlist_search():
+
+	db = get_db()
+	
+	form=WishlistSearchForm()
+	if form.validate_on_submit():
+		term = Markup.escape(request.form['search']) # escape the search term before broadcasting it!
+		db.execute("insert into wishlists (usr,wishstr) values(?,?)",[g.user.id, term])
+		db.commit()
+
+	cur = db.execute("select wishstr from wishlists where usr=?",[g.user.id])
+	items = cur.fetchall()
+	items = [i[0] for i in items]
+	return render_template("wishlist_search.html", user=g.user, items=items, form=form)
 
 """
 Users and login
