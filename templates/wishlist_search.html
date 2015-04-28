@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %} - Wishlist{% endblock %}
+{% block extraheader %}
+{% endblock %}
+{% block body %}
+
+	<h1>{{g.user.id}}'s wishlist search terms</h1>
+	
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<ul>
+			{% for name in items %}
+				<li>
+					{{name}}
+					<a href="/wishlist/search/delete/{{name}}" class="btn btn-xs btn-danger">
+						<span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+					</a>
+					
+				</li>
+			{% endfor %}
+			</ul>
+		</div>
+	</div>
+
+	<div class="panel panel-default">
+		<div class="panel-body">
+			
+			<h3>Add search terms</h3>
+
+			<form action="{{ url_for('wishlist_search') }}" method="post" name="add">
+				<div class="form-group">
+					{{ form.hidden_tag() }}
+								
+					Search term: {{ form.search(size=40) }}
+					
+					<button type="submit" class="btn btn-md btn-primary">
+						<span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add
+					</button>
+				</div>
+			</form>
+			
+		</div>
+	</div>
+		
+{% endblock %}

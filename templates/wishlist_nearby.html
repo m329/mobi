@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %} - Wishlist{% endblock %}
+{% block extraheader %}
+{% endblock %}
+{% block body %}
+
+	<h1>nearby items on {{g.user.id}}'s wishlist</h1>
+	
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<ul>
+			{% for name,price,owner,item_id in items %}
+				<li>
+					{{name}}
+					<span class="label label-success">${{price}}</span>
+					<a href="/private/{{g.user.id}}/{{owner}}/{{item_id}}" class="btn btn-xs btn-info">
+						<span class="glyphicon glyphicon-comment" aria-hidden="true"></span>
+					</a>
+				</li>
+			{% endfor %}
+			</ul>
+		</div>
+	</div>
+
+		
+{% endblock %}
