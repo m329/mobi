@@ -128,7 +128,7 @@
 				<li {% if request.path == "/" %}class="active"{% endif %}><a href="/"><span class="glyphicon glyphicon-home" aria-hidden="true"> Home</a></li>
 				
 				{% if g.user.is_authenticated() %}
-					<li {% if request.path == "/chat" %}class="active"{% endif %}><a href="/chat"><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Chat</a></li>
+					<li {% if request.path == "/chat" %}class="active"{% endif %}><a href="/chat"><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Public Chat</a></li>
 				{% else %}
 				{% endif %}
 				
@@ -184,6 +184,30 @@
 <div class="container">
 
 {% block body %}{% endblock %}
+
+<div class="modal fade" id="notifyModal" tabindex="-1" role="dialog" aria-labelledby="notifyModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+				<h4 class="modal-title" id="notifyModalLabel">Notification</h4>
+			</div>
+			<div class="modal-body">
+				<div id="notifyModalMessage">
+				
+				</div>
+			</div>
+			<div class="modal-footer">
+
+			</div>
+		
+		</div>
+	
+	</div>
+</div>
+
 
 </div> <!-- /container -->
 </body>

@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block title %} - Chat - Pairwise{% endblock %}
+{% block extraheader %}
+<script type="text/javascript" charset="utf-8">
+	$(document).ready(function(){
+
+		namespace = '/private'; 
+		
+		var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+		
+		socket.on('connect', function() {
+			socket.emit('join', {room: '{{room}}'});
+			return false;
+		});
+		
+		// event handler for data from server
+		socket.on('response', function(msg) {
+			$('#log').append("<div><span class=\"label label-primary\">"+msg.user+"</span>    "+msg.data+"</div>");
+		});
+		
+		$('form#send').submit(function(event) {
+			socket.emit('message', {room: '{{room}}', data: $('#data').val()});
+			$("#data").val('');
+			return false;
+		});
+		
+	});
+</script>
+{% endblock %}
+{% block body %}
+
+	<h1>Chat with {{otheruser}} about {{about_item}}</h1>
+	
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<div id="log"></div>
+		</div>
+	</div>
+
+	<div class="panel panel-default">
+		<div class="panel-body">
+			<form id="send" method="POST" action='#' class="form-inline">
+				<div class="form-group">
+					<input type="text" name="data" id="data" placeholder="Message">
+					<button type="submit" class="btn btn-md btn-primary">
+						<span class="glyphicon glyphicon-send" aria-hidden="true"></span> Send
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	
+{% endblock %}

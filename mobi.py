@@ -15,7 +15,7 @@ import json, sqlite3
 from flask import Flask, render_template, g, request, flash, redirect, url_for, session, Markup
 import requests
 import config
-from flask.ext.socketio import SocketIO, emit, disconnect
+from flask.ext.socketio import SocketIO, emit, disconnect, join_room, leave_room, send
 from flask.ext.login import LoginManager, login_required, login_user, logout_user, current_user
 from forms import LoginForm, WishlistSearchForm, InventoryAddForm
 from models import User
@@ -81,6 +81,32 @@ def index(asklocation=''):
 def chat():
 	""" show chat page """
 	return render_template('chat.html',user=g.user)
+
+@app.route("/private/<u1>/<u2>/<item>")
+@login_required
+def chat_pairwise(u1,u2,item):
+	""" show pairwise chat page """
+	db = get_db()
+	cur = db.execute('select itm_name from items where itm_id=?',[item])
+	result = cur.fetchone()
+	
+	item_name = None
+	
+	if len(result) > 0:
+		item_name = result[0]
+	else:
+		return redirect(url_for('chat'))
+		
+	if g.user.id not in [u1,u2]:
+		return redirect(url_for('chat'))
+		
+	pair = [u1,u2]
+	pair.remove(g.user.id)
+	otheruser=pair[0]
+	
+	socketio.emit('response', {'data': g.user.id+' wants to chat with you about '+item_name+'!', 'url':'/private/'+u1+'/'+u2+'/'+item}, room=otheruser, namespace='/personal')
+	
+	return render_template('chat_pairwise.html',room='|'.join(sorted([u1,u2])),user=g.user,otheruser=otheruser,about_item=item_name)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -228,6 +254,8 @@ def wishlist_search():
 	items = [i[0] for i in items]
 	return render_template("wishlist_search.html", user=g.user, items=items, form=form)
 
+	
+
 """
 Users and login
 """
@@ -269,6 +297,65 @@ def thechat_connect():
 @socketio.on('disconnect', namespace='/thechat')
 def thechat_disconnect():
 	print('The client has disconnected.')
+
+# Private rooms
+@socketio.on('connect', namespace='/private')
+def private_connect():
+	if current_user.is_authenticated():
+		emit('response', {'data': 'You are now connected.', 'user': 'system'})
+	else:
+		disconnect()
+
+@socketio.on('disconnect', namespace='/private')
+def private_disconnect():
+	print('The client has disconnected.')
+
+@socketio.on('join', namespace='/private')
+def private_on_join(data):
+    username = current_user.id
+    room = data['room']
+    if username in room.split('|'):
+		join_room(room)
+		send(username + ' has entered the room.', room=room)
+
+@socketio.on('leave', namespace='/private')
+def private_on_leave(data):
+    username = current_user.id
+    room = data['room']
+    if username in room.split('|'):
+		leave_room(room)
+		send(username + ' has left the room.', room=room)
+
+@socketio.on('message', namespace='/private')
+def private_send_message(message):
+	
+	username = current_user.id
+	room = message['room']
+
+	if current_user.is_authenticated() and username in room.split('|'):
+			escaped_message = Markup.escape(message['data']) # escape the message before broadcasting it!
+			emit('response',{'data': escaped_message, 'user': current_user.id},room=message['room'], broadcast=True)
+		
+	else:
+		disconnect()
+
+"""
+Personal
+"""
+
+@socketio.on('connect', namespace='/personal')
+def personal_connect():	
+	if current_user.is_authenticated():
+		#emit('response', {'data': 'You are now connected.', 'user': 'system'})
+		join_room(current_user.id)
+		
+	else:
+		disconnect()
+
+@socketio.on('disconnect', namespace='/personal')
+def personal_disconnect():
+	print('The client has disconnected.')
+
 
 # if this module is called directly, run the app
 if __name__ == "__main__":
